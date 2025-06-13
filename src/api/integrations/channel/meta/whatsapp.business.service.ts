@@ -490,12 +490,13 @@ export class BusinessStartupService extends ChannelStartupService {
 
         this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
 
-        await chatbotController.emit({
-          instance: { instanceName: this.instance.name, instanceId: this.instanceId },
-          remoteJid: messageRaw.key.remoteJid,
-          msg: messageRaw,
-          pushName: messageRaw.pushName,
-        });
+        // Evolution Bot automatic call removed - now only via manual endpoint
+        // await chatbotController.emit({
+        //   instance: { instanceName: this.instance.name, instanceId: this.instanceId },
+        //   remoteJid: messageRaw.key.remoteJid,
+        //   msg: messageRaw,
+        //   pushName: messageRaw.pushName,
+        // });
 
         if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled) {
           const chatwootSentMessage = await this.chatwootService.eventWhatsapp(
@@ -936,13 +937,14 @@ export class BusinessStartupService extends ChannelStartupService {
         );
       }
 
-      if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled && isIntegration)
-        await chatbotController.emit({
-          instance: { instanceName: this.instance.name, instanceId: this.instanceId },
-          remoteJid: messageRaw.key.remoteJid,
-          msg: messageRaw,
-          pushName: messageRaw.pushName,
-        });
+      // Evolution Bot automatic call removed - now only via manual endpoint
+      // if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled && isIntegration)
+      //   await chatbotController.emit({
+      //     instance: { instanceName: this.instance.name, instanceId: this.instanceId },
+      //     remoteJid: messageRaw.key.remoteJid,
+      //     msg: messageRaw,
+      //     pushName: messageRaw.pushName,
+      //   });
 
       await this.prismaRepository.message.create({
         data: messageRaw,

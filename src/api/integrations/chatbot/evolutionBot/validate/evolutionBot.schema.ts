@@ -113,3 +113,35 @@ export const evolutionBotIgnoreJidSchema: JSONSchema7 = {
   required: ['remoteJid', 'action'],
   ...isNotEmpty('remoteJid', 'action'),
 };
+
+export const evolutionBotManualInvokeSchema: JSONSchema7 = {
+  $id: v4(),
+  type: 'object',
+  properties: {
+    evolutionBotId: { type: 'string' },
+    message: {
+      type: 'object',
+      properties: {
+        key: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            remoteJid: { type: 'string' },
+            fromMe: { type: 'boolean' },
+            participant: { type: 'string' }
+          },
+          required: ['id', 'remoteJid', 'fromMe']
+        },
+        message: { type: 'object' },
+        messageType: { type: 'string' },
+        messageTimestamp: { type: 'number' },
+        pushName: { type: 'string' },
+        quoted: { type: 'object' },
+        mentions: { type: 'array', items: { type: 'string' } }
+      },
+      required: ['key', 'message', 'messageType', 'messageTimestamp']
+    }
+  },
+  required: ['evolutionBotId', 'message'],
+  ...isNotEmpty('evolutionBotId', 'message'),
+};

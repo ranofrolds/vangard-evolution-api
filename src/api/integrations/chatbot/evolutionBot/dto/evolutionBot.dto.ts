@@ -35,3 +35,21 @@ export class EvolutionBotSettingDto {
   splitMessages?: boolean;
   timePerChar?: number;
 }
+
+export class EvolutionBotManualInvokeDto {
+  evolutionBotId: string;
+  message: {
+    key: {
+      id: string;
+      remoteJid: string;
+      fromMe: boolean;
+      participant?: string;
+    };
+    message: any;
+    messageType: string;
+    messageTimestamp: number;
+    pushName?: string;
+    quoted?: any;
+    mentions?: string[];
+  };
+}

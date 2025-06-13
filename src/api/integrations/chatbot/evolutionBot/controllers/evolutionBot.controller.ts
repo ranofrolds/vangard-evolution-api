@@ -857,4 +857,154 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
       return;
     }
   }
+
+  // Manual Invoke
+  public async manualInvoke(instance: InstanceDto, data: any) {
+    try {
+      const { evolutionBotId, message } = data;
+
+      // Find the specific bot by ID
+      const bot = await this.botRepository.findFirst({
+        where: {
+          id: evolutionBotId,
+          enabled: true,
+        },
+      });
+
+      if (!bot) {
+        throw new Error(`Evolution Bot with ID ${evolutionBotId} not found or not enabled`);
+      }
+
+      // Get bot settings
+      const settings = await this.settingsRepository.findFirst({
+        where: {
+          instanceId: instance.instanceId,
+        },
+      });
+
+      if (!settings) {
+        throw new Error('Evolution Bot settings not found for this instance');
+      }
+
+      // Get session
+      const session = await this.getSession(message.key.remoteJid, instance);
+      
+      // Get message content
+      const content = getConversationMessage(message);
+
+      // Check ignore JIDs
+      if (this.checkIgnoreJids(settings?.ignoreJids, message.key.remoteJid)) {
+        return { message: 'JID is in ignore list' };
+      }
+
+      // Prepare settings with bot specific values or fallback to general settings
+      let expire = bot?.expire;
+      let keywordFinish = bot?.keywordFinish;
+      let delayMessage = bot?.delayMessage;
+      let unknownMessage = bot?.unknownMessage;
+      let listeningFromMe = bot?.listeningFromMe;
+      let stopBotFromMe = bot?.stopBotFromMe;
+      let keepOpen = bot?.keepOpen;
+      let debounceTime = bot?.debounceTime;
+      let ignoreJids = bot?.ignoreJids;
+      let splitMessages = bot?.splitMessages;
+      let timePerChar = bot?.timePerChar;
+
+      if (expire === undefined || expire === null) expire = settings.expire;
+      if (keywordFinish === undefined || keywordFinish === null) keywordFinish = settings.keywordFinish;
+      if (delayMessage === undefined || delayMessage === null) delayMessage = settings.delayMessage;
+      if (unknownMessage === undefined || unknownMessage === null) unknownMessage = settings.unknownMessage;
+      if (listeningFromMe === undefined || listeningFromMe === null) listeningFromMe = settings.listeningFromMe;
+      if (stopBotFromMe === undefined || stopBotFromMe === null) stopBotFromMe = settings.stopBotFromMe;
+      if (keepOpen === undefined || keepOpen === null) keepOpen = settings.keepOpen;
+      if (debounceTime === undefined || debounceTime === null) debounceTime = settings.debounceTime;
+      if (ignoreJids === undefined || ignoreJids === null) ignoreJids = settings.ignoreJids;
+      if (splitMessages === undefined || splitMessages === null) splitMessages = settings?.splitMessages ?? false;
+      if (timePerChar === undefined || timePerChar === null) timePerChar = settings?.timePerChar ?? 0;
+
+      // Check if should stop bot from own messages
+      if (stopBotFromMe && message.key.fromMe && session) {
+        await this.prismaRepository.integrationSession.update({
+          where: {
+            id: session.id,
+          },
+          data: {
+            status: 'paused',
+          },
+        });
+        return { message: 'Bot stopped due to message from me' };
+      }
+
+      // Check if should listen to own messages
+      if (!listeningFromMe && message.key.fromMe) {
+        return { message: 'Bot not listening to messages from me' };
+      }
+
+      // Check if session is waiting for user
+      if (session && !session.awaitUser) {
+        return { message: 'Session not awaiting user response' };
+      }
+
+      // Process the bot with debounce or directly
+      if (debounceTime && debounceTime > 0) {
+        this.processDebounce(this.userMessageDebounce, content, message.key.remoteJid, debounceTime, async (debouncedContent) => {
+          await this.evolutionBotService.processBot(
+            this.waMonitor.waInstances[instance.instanceName],
+            message.key.remoteJid,
+            bot,
+            session,
+            {
+              ...settings,
+              expire,
+              keywordFinish,
+              delayMessage,
+              unknownMessage,
+              listeningFromMe,
+              stopBotFromMe,
+              keepOpen,
+              debounceTime,
+              ignoreJids,
+              splitMessages,
+              timePerChar,
+            },
+            debouncedContent,
+            message?.pushName,
+          );
+        });
+      } else {
+        await this.evolutionBotService.processBot(
+          this.waMonitor.waInstances[instance.instanceName],
+          message.key.remoteJid,
+          bot,
+          session,
+          {
+            ...settings,
+            expire,
+            keywordFinish,
+            delayMessage,
+            unknownMessage,
+            listeningFromMe,
+            stopBotFromMe,
+            keepOpen,
+            debounceTime,
+            ignoreJids,
+            splitMessages,
+            timePerChar,
+          },
+          content,
+          message?.pushName,
+        );
+      }
+
+      return { 
+        message: 'Evolution Bot invoked successfully',
+        botId: evolutionBotId,
+        remoteJid: message.key.remoteJid,
+        content: content
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw error;
+    }
+  }
 }

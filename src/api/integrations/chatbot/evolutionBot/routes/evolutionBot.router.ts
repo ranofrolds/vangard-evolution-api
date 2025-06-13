@@ -6,12 +6,13 @@ import { evolutionBotController } from '@api/server.module';
 import { instanceSchema } from '@validate/instance.schema';
 import { RequestHandler, Router } from 'express';
 
-import { EvolutionBotDto, EvolutionBotSettingDto } from '../dto/evolutionBot.dto';
+import { EvolutionBotDto, EvolutionBotSettingDto, EvolutionBotManualInvokeDto } from '../dto/evolutionBot.dto';
 import {
   evolutionBotIgnoreJidSchema,
   evolutionBotSchema,
   evolutionBotSettingSchema,
   evolutionBotStatusSchema,
+  evolutionBotManualInvokeSchema,
 } from '../validate/evolutionBot.schema';
 
 export class EvolutionBotRouter extends RouterBroker {
@@ -117,6 +118,16 @@ export class EvolutionBotRouter extends RouterBroker {
         });
 
         res.status(HttpStatus.OK).json(response);
+      })
+      .post(this.routerPath('manualInvoke'), ...guards, async (req, res) => {
+        const response = await this.dataValidate<EvolutionBotManualInvokeDto>({
+          request: req,
+          schema: evolutionBotManualInvokeSchema,
+          ClassRef: EvolutionBotManualInvokeDto,
+          execute: (instance, data) => evolutionBotController.manualInvoke(instance, data),
+        });
+
+        res.status(HttpStatus.CREATED).json(response);
       });
   }
 
