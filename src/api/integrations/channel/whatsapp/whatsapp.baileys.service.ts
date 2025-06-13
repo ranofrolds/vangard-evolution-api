@@ -1908,10 +1908,12 @@ export class BaileysStartupService extends ChannelStartupService {
     const jid = createJid(number);
 
     try {
-      const call = await this.client.offerCall(jid, isVideo);
-      setTimeout(() => this.client.terminateCall(call.id, call.to), callDuration * 1000);
-
-      return call;
+      // Note: offerCall and terminateCall methods are not available in current Baileys version
+      // const call = await this.client.offerCall(jid, isVideo);
+      // setTimeout(() => this.client.terminateCall(call.id, call.to), callDuration * 1000);
+      
+      throw new Error('offerCall feature is not available in current Baileys version');
+      // return call;
     } catch (error) {
       return error;
     }
