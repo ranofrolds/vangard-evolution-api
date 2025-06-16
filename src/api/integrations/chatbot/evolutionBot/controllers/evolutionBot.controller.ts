@@ -863,16 +863,9 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
     try {
       const { evolutionBotId, message } = data;
 
-      // Find the specific bot by ID
-      const bot = await this.botRepository.findFirst({
-        where: {
-          id: evolutionBotId,
-          enabled: true,
-        },
-      });
-
-      if (!bot) {
-        throw new Error(`Evolution Bot with ID ${evolutionBotId} not found or not enabled`);
+      // Auto-generate ID if not provided
+      if (!message.key.id) {
+        message.key.id = 'manual-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
       }
 
       // Get bot settings
@@ -896,6 +889,83 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
       if (this.checkIgnoreJids(settings?.ignoreJids, message.key.remoteJid)) {
         return { message: 'JID is in ignore list' };
       }
+
+      // Find bot using trigger logic (same as automatic flow)
+      let findBot = (await this.findBotTrigger(this.botRepository, content, instance, session)) as EvolutionBot;
+
+      // If no bot found by trigger, check if the specific bot ID would be triggered
+      if (!findBot) {
+        // Get the specific bot by ID to validate it exists
+        const specificBot = await this.botRepository.findFirst({
+          where: {
+            id: evolutionBotId,
+            enabled: true,
+            instanceId: instance.instanceId,
+          },
+        });
+
+        if (!specificBot) {
+          throw new Error(`Evolution Bot with ID ${evolutionBotId} not found or not enabled`);
+        }
+
+        // Check if this specific bot would be triggered by the message
+        if (specificBot.triggerType === 'all') {
+          findBot = specificBot;
+        } else if (specificBot.triggerType === 'keyword') {
+          const { triggerOperator, triggerValue } = specificBot;
+          let triggered = false;
+
+          switch (triggerOperator) {
+            case 'equals':
+              triggered = content === triggerValue;
+              break;
+            case 'contains':
+              triggered = content.includes(triggerValue);
+              break;
+            case 'startsWith':
+              triggered = content.startsWith(triggerValue);
+              break;
+            case 'endsWith':
+              triggered = content.endsWith(triggerValue);
+              break;
+            case 'regex':
+              try {
+                const regex = new RegExp(triggerValue);
+                triggered = regex.test(content);
+              } catch (e) {
+                this.logger.error('Invalid regex pattern:', triggerValue);
+                triggered = false;
+              }
+              break;
+          }
+
+          if (triggered) {
+            findBot = specificBot;
+          }
+        } else if (specificBot.triggerType === 'advanced') {
+          // Import the advanced operators function
+          const { advancedOperatorsSearch } = await import('@utils/advancedOperatorsSearch');
+          if (advancedOperatorsSearch(content, specificBot.triggerValue)) {
+            findBot = specificBot;
+          }
+        }
+
+        // If still no trigger match, return with explanation
+        if (!findBot) {
+          return { 
+            message: `Bot with ID ${evolutionBotId} exists but trigger conditions not met`,
+            botId: evolutionBotId,
+            triggerType: specificBot.triggerType,
+            triggerOperator: specificBot.triggerOperator,
+            triggerValue: specificBot.triggerValue,
+            messageContent: content,
+            triggered: false
+          };
+        }
+      }
+
+      // Use the found bot (either by natural trigger or specific validation)
+      const bot = findBot;
 
       // Prepare settings with bot specific values or fallback to general settings
       let expire = bot?.expire;
@@ -998,7 +1068,9 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
 
       return { 
         message: 'Evolution Bot invoked successfully',
-        botId: evolutionBotId,
+        botId: bot.id,
+        botTriggered: true,
+        triggerType: bot.triggerType,
         remoteJid: message.key.remoteJid,
         content: content
       };

@@ -40,7 +40,7 @@ export class EvolutionBotManualInvokeDto {
   evolutionBotId: string;
   message: {
     key: {
-      id: string;
+      id?: string;  // Optional - will be auto-generated if not provided
       remoteJid: string;
       fromMe: boolean;
       participant?: string;

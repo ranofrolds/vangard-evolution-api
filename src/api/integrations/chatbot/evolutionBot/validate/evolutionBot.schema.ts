@@ -130,7 +130,7 @@ export const evolutionBotManualInvokeSchema: JSONSchema7 = {
             fromMe: { type: 'boolean' },
             participant: { type: 'string' }
           },
-          required: ['id', 'remoteJid', 'fromMe']
+          required: ['remoteJid', 'fromMe']  // id is now optional
         },
         message: { type: 'object' },
         messageType: { type: 'string' },
