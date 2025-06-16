@@ -879,9 +879,6 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         throw new Error('Evolution Bot settings not found for this instance');
       }
 
-      // Get session
-      const session = await this.getSession(message.key.remoteJid, instance);
-      
       // Get message content
       const content = getConversationMessage(message);
 
@@ -890,82 +887,99 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         return { message: 'JID is in ignore list' };
       }
 
-      // Find bot using trigger logic (same as automatic flow)
-      let findBot = (await this.findBotTrigger(this.botRepository, content, instance, session)) as EvolutionBot;
+      // Get the specific bot by ID first
+      const specificBot = await this.botRepository.findFirst({
+        where: {
+          id: evolutionBotId,
+          enabled: true,
+          instanceId: instance.instanceId,
+        },
+      });
 
-      // If no bot found by trigger, check if the specific bot ID would be triggered
-      if (!findBot) {
-        // Get the specific bot by ID to validate it exists
-        const specificBot = await this.botRepository.findFirst({
-          where: {
-            id: evolutionBotId,
-            enabled: true,
-            instanceId: instance.instanceId,
-          },
-        });
+      if (!specificBot) {
+        throw new Error(`Evolution Bot with ID ${evolutionBotId} not found or not enabled`);
+      }
 
-        if (!specificBot) {
-          throw new Error(`Evolution Bot with ID ${evolutionBotId} not found or not enabled`);
+      // Check if there's already a session for this specific bot
+      const existingSession = await this.prismaRepository.integrationSession.findFirst({
+        where: {
+          remoteJid: message.key.remoteJid,
+          instanceId: instance.instanceId,
+          botId: evolutionBotId,
+          status: { not: 'closed' }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      let bot = specificBot;
+      let shouldExecute = false;
+
+      if (existingSession) {
+        // If session exists for this bot, proceed normally
+        shouldExecute = true;
+        this.logger.log(`Found existing session for bot ${evolutionBotId}, proceeding with execution`);
+      } else {
+        // No session exists, check if this is a finishing trigger
+        if (specificBot.keywordFinish && content === specificBot.keywordFinish) {
+          return { 
+            message: `Bot with ID ${evolutionBotId} received finish keyword but no active session exists`,
+            botId: evolutionBotId,
+            keywordFinish: specificBot.keywordFinish,
+            messageContent: content,
+            sessionExists: false
+          };
         }
 
-        // Check if this specific bot would be triggered by the message
+        // No session exists, check if trigger is activated to start new session
         if (specificBot.triggerType === 'all') {
-          findBot = specificBot;
+          shouldExecute = true;
         } else if (specificBot.triggerType === 'keyword') {
           const { triggerOperator, triggerValue } = specificBot;
-          let triggered = false;
 
           switch (triggerOperator) {
             case 'equals':
-              triggered = content === triggerValue;
+              shouldExecute = content === triggerValue;
               break;
             case 'contains':
-              triggered = content.includes(triggerValue);
+              shouldExecute = content.includes(triggerValue);
               break;
             case 'startsWith':
-              triggered = content.startsWith(triggerValue);
+              shouldExecute = content.startsWith(triggerValue);
               break;
             case 'endsWith':
-              triggered = content.endsWith(triggerValue);
+              shouldExecute = content.endsWith(triggerValue);
               break;
             case 'regex':
               try {
                 const regex = new RegExp(triggerValue);
-                triggered = regex.test(content);
+                shouldExecute = regex.test(content);
               } catch (e) {
                 this.logger.error(`Invalid regex pattern: ${triggerValue}`);
-                triggered = false;
+                shouldExecute = false;
               }
               break;
           }
-
-          if (triggered) {
-            findBot = specificBot;
-          }
         } else if (specificBot.triggerType === 'advanced') {
-          // Import the advanced operators function
           const { advancedOperatorsSearch } = await import('@utils/advancedOperatorsSearch');
-          if (advancedOperatorsSearch(content, specificBot.triggerValue)) {
-            findBot = specificBot;
-          }
+          shouldExecute = advancedOperatorsSearch(content, specificBot.triggerValue);
         }
 
-        // If still no trigger match, return with explanation
-        if (!findBot) {
+        if (!shouldExecute) {
           return { 
-            message: `Bot with ID ${evolutionBotId} exists but trigger conditions not met`,
+            message: `Bot with ID ${evolutionBotId} exists but trigger conditions not met for new session`,
             botId: evolutionBotId,
             triggerType: specificBot.triggerType,
             triggerOperator: specificBot.triggerOperator,
             triggerValue: specificBot.triggerValue,
             messageContent: content,
+            sessionExists: false,
             triggered: false
           };
         }
       }
 
-      // Use the found bot (either by natural trigger or specific validation)
-      const bot = findBot;
+      // Update session reference
+      const session = existingSession;
 
       // Prepare settings with bot specific values or fallback to general settings
       let expire = bot?.expire;
