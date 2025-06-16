@@ -933,7 +933,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
                 const regex = new RegExp(triggerValue);
                 triggered = regex.test(content);
               } catch (e) {
-                this.logger.error('Invalid regex pattern:', triggerValue);
+                this.logger.error(`Invalid regex pattern: ${triggerValue}`);
                 triggered = false;
               }
               break;
