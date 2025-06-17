@@ -34,13 +34,15 @@ export class EvolutionBotSettingDto {
   ignoreJids?: any;
   splitMessages?: boolean;
   timePerChar?: number;
+  manualInvoke?: boolean;
+  manualInvokeBotId?: string;
 }
 
 export class EvolutionBotManualInvokeDto {
   evolutionBotId: string;
   message: {
     key: {
-      id?: string;  // Optional - will be auto-generated if not provided
+      id?: string; // Optional - will be auto-generated if not provided
       remoteJid: string;
       fromMe: boolean;
       participant?: string;
@@ -52,4 +54,9 @@ export class EvolutionBotManualInvokeDto {
     quoted?: any;
     mentions?: string[];
   };
+}
+
+export class EvolutionBotManualInvokeConfigDto {
+  manualInvoke: boolean;
+  evolutionBotId?: string; // Optional - only needed when manualInvoke is true
 }

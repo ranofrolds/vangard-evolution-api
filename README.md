@@ -116,3 +116,81 @@ Please contact contato@atendai.com to inquire about licensing matters.
 Apart from the specific conditions mentioned above, all other rights and restrictions follow the Apache License 2.0. Detailed information about the Apache License 2.0 can be found at [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0).
 
 © 2024 Evolution API
+
+# Manual Invoke Configuration
+
+## Endpoints para Configuração Externa do Manual Invoke
+
+### 1. Listar Evolution Bots Disponíveis
+```
+GET /evolutionbot/listBotsForManualInvoke
+```
+
+**Headers:**
+```
+apikey: YOUR_API_KEY
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "bots": [
+    {
+      "id": "bot_id_1",
+      "description": "Bot Description",
+      "triggerType": "keyword",
+      "triggerValue": "oi",
+      "enabled": true,
+      "createdAt": "2024-01-01T00:00:00Z"
+    }
+  ],
+  "currentManualInvokeConfig": {
+    "manualInvoke": false,
+    "manualInvokeBotId": null
+  }
+}
+```
+
+### 2. Configurar Manual Invoke
+```
+POST /evolutionbot/configureManualInvoke
+```
+
+**Headers:**
+```
+apikey: YOUR_API_KEY
+Content-Type: application/json
+```
+
+**Body:**
+```json
+{
+  "manualInvoke": true,
+  "evolutionBotId": "bot_id_1"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Manual invoke configuration updated successfully",
+  "manualInvoke": true,
+  "manualInvokeBotId": "bot_id_1",
+  "evolutionBotDisabled": true
+}
+```
+
+### Lógica do Manual Invoke
+
+1. **Quando `manualInvoke` = `true`:** O Evolution Bot automático fica **desabilitado** para o bot especificado
+2. **Quando `manualInvoke` = `false`:** O Evolution Bot volta a funcionar **automaticamente**
+3. **Manual Invoke ativo:** As mensagens só são processadas via endpoint `/evolutionbot/manualInvoke`
+
+### Exemplo de Uso no Sistema Externo
+
+1. **Carregar lista de bots:** `GET /evolutionbot/listBotsForManualInvoke`
+2. **Popular select com os bots retornados**
+3. **Configurar toggle baseado em `currentManualInvokeConfig.manualInvoke`**
+4. **Ao salvar:** `POST /evolutionbot/configureManualInvoke` com os dados do formulário

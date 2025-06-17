@@ -36,6 +36,20 @@ async function bootstrap() {
   const prismaRepository = new PrismaRepository(configService);
   await prismaRepository.onModuleInit();
 
+  // Auto-run Prisma migrations on startup
+  try {
+    logger.info('Running Prisma migrations...');
+    const { execSync } = require('child_process');
+    execSync('npx prisma migrate deploy', {
+      stdio: 'inherit',
+      cwd: process.cwd(),
+    });
+    logger.info('Prisma migrations completed successfully');
+  } catch (error) {
+    logger.error(`Failed to run Prisma migrations: ${error}`);
+    // Don't exit the process, let the app continue (migrations might not be needed)
+  }
+
   app.use(
     cors({
       origin(requestOrigin, callback) {

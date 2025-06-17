@@ -6,13 +6,19 @@ import { evolutionBotController } from '@api/server.module';
 import { instanceSchema } from '@validate/instance.schema';
 import { RequestHandler, Router } from 'express';
 
-import { EvolutionBotDto, EvolutionBotSettingDto, EvolutionBotManualInvokeDto } from '../dto/evolutionBot.dto';
+import {
+  EvolutionBotDto,
+  EvolutionBotSettingDto,
+  EvolutionBotManualInvokeDto,
+  EvolutionBotManualInvokeConfigDto,
+} from '../dto/evolutionBot.dto';
 import {
   evolutionBotIgnoreJidSchema,
   evolutionBotSchema,
   evolutionBotSettingSchema,
   evolutionBotStatusSchema,
   evolutionBotManualInvokeSchema,
+  evolutionBotManualInvokeConfigSchema,
 } from '../validate/evolutionBot.schema';
 
 export class EvolutionBotRouter extends RouterBroker {
@@ -128,6 +134,26 @@ export class EvolutionBotRouter extends RouterBroker {
         });
 
         res.status(HttpStatus.CREATED).json(response);
+      })
+      .post(this.routerPath('configureManualInvoke'), ...guards, async (req, res) => {
+        const response = await this.dataValidate<EvolutionBotManualInvokeConfigDto>({
+          request: req,
+          schema: evolutionBotManualInvokeConfigSchema,
+          ClassRef: EvolutionBotManualInvokeConfigDto,
+          execute: (instance, data) => evolutionBotController.configureManualInvoke(instance, data),
+        });
+
+        res.status(HttpStatus.OK).json(response);
+      })
+      .get(this.routerPath('listBotsForManualInvoke'), ...guards, async (req, res) => {
+        const response = await this.dataValidate<InstanceDto>({
+          request: req,
+          schema: instanceSchema,
+          ClassRef: InstanceDto,
+          execute: (instance) => evolutionBotController.listBotsForManualInvoke(instance),
+        });
+
+        res.status(HttpStatus.OK).json(response);
       });
   }
 

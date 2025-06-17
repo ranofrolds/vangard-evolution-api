@@ -74,6 +74,8 @@ export const evolutionBotSettingSchema: JSONSchema7 = {
     botIdFallback: { type: 'string' },
     splitMessages: { type: 'boolean' },
     timePerChar: { type: 'integer' },
+    manualInvoke: { type: 'boolean' },
+    manualInvokeBotId: { type: 'string' },
   },
   required: [
     'expire',
@@ -87,6 +89,7 @@ export const evolutionBotSettingSchema: JSONSchema7 = {
     'ignoreJids',
     'splitMessages',
     'timePerChar',
+    'manualInvoke',
   ],
   ...isNotEmpty(
     'expire',
@@ -100,6 +103,7 @@ export const evolutionBotSettingSchema: JSONSchema7 = {
     'ignoreJids',
     'splitMessages',
     'timePerChar',
+    'manualInvoke',
   ),
 };
 
@@ -128,20 +132,31 @@ export const evolutionBotManualInvokeSchema: JSONSchema7 = {
             id: { type: 'string' },
             remoteJid: { type: 'string' },
             fromMe: { type: 'boolean' },
-            participant: { type: 'string' }
+            participant: { type: 'string' },
           },
-          required: ['remoteJid', 'fromMe']  // id is now optional
+          required: ['remoteJid', 'fromMe'], // id is now optional
         },
         message: { type: 'object' },
         messageType: { type: 'string' },
         messageTimestamp: { type: 'number' },
         pushName: { type: 'string' },
         quoted: { type: 'object' },
-        mentions: { type: 'array', items: { type: 'string' } }
+        mentions: { type: 'array', items: { type: 'string' } },
       },
-      required: ['key', 'message', 'messageType', 'messageTimestamp']
-    }
+      required: ['key', 'message', 'messageType', 'messageTimestamp'],
+    },
   },
   required: ['evolutionBotId', 'message'],
   ...isNotEmpty('evolutionBotId', 'message'),
+};
+
+export const evolutionBotManualInvokeConfigSchema: JSONSchema7 = {
+  $id: v4(),
+  type: 'object',
+  properties: {
+    manualInvoke: { type: 'boolean' },
+    evolutionBotId: { type: 'string' },
+  },
+  required: ['manualInvoke'],
+  ...isNotEmpty('manualInvoke'),
 };

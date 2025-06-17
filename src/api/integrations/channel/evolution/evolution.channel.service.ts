@@ -177,13 +177,27 @@ export class EvolutionStartupService extends ChannelStartupService {
 
         this.sendDataWebhook(Events.MESSAGES_UPSERT, messageRaw);
 
-        // Evolution Bot automatic call removed - now only via manual endpoint
-        // await chatbotController.emit({
-        //   instance: { instanceName: this.instance.name, instanceId: this.instanceId },
-        //   remoteJid: messageRaw.key.remoteJid,
-        //   msg: messageRaw,
-        //   pushName: messageRaw.pushName,
-        // });
+        // Manual invoke functionality - Now enabled
+        try {
+          const evolutionBotSettings = await this.prismaRepository.evolutionBotSetting.findFirst({
+            where: {
+              instanceId: this.instanceId,
+            },
+          });
+
+          if (evolutionBotSettings?.manualInvoke && evolutionBotSettings?.manualInvokeBotId) {
+            const { evolutionBotController } = await import('@api/server.module');
+            await evolutionBotController.manualInvoke(
+              { instanceName: this.instance.name, instanceId: this.instanceId },
+              {
+                evolutionBotId: evolutionBotSettings.manualInvokeBotId,
+                message: messageRaw,
+              },
+            );
+          }
+        } catch (error) {
+          this.logger.error('Error in manual invoke:', error);
+        }
 
         if (this.configService.get<Chatwoot>('CHATWOOT').ENABLED && this.localChatwoot?.enabled) {
           const chatwootSentMessage = await this.chatwootService.eventWhatsapp(

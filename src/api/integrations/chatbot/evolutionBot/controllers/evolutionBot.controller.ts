@@ -440,6 +440,8 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
             ignoreJids: data.ignoreJids,
             splitMessages: data.splitMessages,
             timePerChar: data.timePerChar,
+            manualInvoke: data.manualInvoke,
+            manualInvokeBotId: data.manualInvokeBotId,
           },
         });
 
@@ -456,6 +458,8 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
           ignoreJids: updateSettings.ignoreJids,
           splitMessages: updateSettings.splitMessages,
           timePerChar: updateSettings.timePerChar,
+          manualInvoke: updateSettings.manualInvoke,
+          manualInvokeBotId: updateSettings.manualInvokeBotId,
         };
       }
 
@@ -473,6 +477,8 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
           ignoreJids: data.ignoreJids,
           splitMessages: data.splitMessages,
           timePerChar: data.timePerChar,
+          manualInvoke: data.manualInvoke,
+          manualInvokeBotId: data.manualInvokeBotId,
           instanceId: instanceId,
         },
       });
@@ -490,6 +496,8 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         ignoreJids: newSetttings.ignoreJids,
         splitMessages: newSetttings.splitMessages,
         timePerChar: newSetttings.timePerChar,
+        manualInvoke: newSetttings.manualInvoke,
+        manualInvokeBotId: newSetttings.manualInvokeBotId,
       };
     } catch (error) {
       this.logger.error(error);
@@ -513,6 +521,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         },
         include: {
           Fallback: true,
+          ManualInvokeBot: true,
         },
       });
 
@@ -530,6 +539,9 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
           timePerChar: 0,
           botIdFallback: '',
           fallback: null,
+          manualInvoke: false,
+          manualInvokeBotId: '',
+          manualInvokeBot: null,
         };
       }
 
@@ -546,6 +558,9 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         timePerChar: settings.timePerChar,
         botIdFallback: settings.botIdFallback,
         fallback: settings.Fallback,
+        manualInvoke: settings.manualInvoke,
+        manualInvokeBotId: settings.manualInvokeBotId,
+        manualInvokeBot: settings.ManualInvokeBot,
       };
     } catch (error) {
       this.logger.error(error);
@@ -724,6 +739,14 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
 
       if (this.checkIgnoreJids(settings?.ignoreJids, remoteJid)) return;
 
+      // Check if manual invoke is enabled - if yes, disable automatic evolution bot processing
+      if (settings?.manualInvoke && settings?.manualInvokeBotId) {
+        this.logger.log(
+          `Manual invoke is enabled for bot ${settings.manualInvokeBotId}, skipping automatic evolution bot processing`,
+        );
+        return;
+      }
+
       const session = await this.getSession(remoteJid, instance);
 
       const content = getConversationMessage(msg);
@@ -748,6 +771,12 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         } else {
           return;
         }
+      }
+
+      // Double check - if manual invoke is enabled for this specific bot, skip automatic processing
+      if (settings?.manualInvoke && settings?.manualInvokeBotId === findBot.id) {
+        this.logger.log(`Manual invoke is enabled for this specific bot ${findBot.id}, skipping automatic processing`);
+        return;
       }
 
       let expire = findBot?.expire;
@@ -906,7 +935,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
           remoteJid: message.key.remoteJid,
           instanceId: instance.instanceId,
           botId: evolutionBotId,
-          status: { not: 'closed' }
+          status: { not: 'closed' },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -921,12 +950,12 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
       } else {
         // No session exists, check if this is a finishing trigger
         if (specificBot.keywordFinish && content === specificBot.keywordFinish) {
-          return { 
+          return {
             message: `Bot with ID ${evolutionBotId} received finish keyword but no active session exists`,
             botId: evolutionBotId,
             keywordFinish: specificBot.keywordFinish,
             messageContent: content,
-            sessionExists: false
+            sessionExists: false,
           };
         }
 
@@ -965,7 +994,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         }
 
         if (!shouldExecute) {
-          return { 
+          return {
             message: `Bot with ID ${evolutionBotId} exists but trigger conditions not met for new session`,
             botId: evolutionBotId,
             triggerType: specificBot.triggerType,
@@ -973,7 +1002,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
             triggerValue: specificBot.triggerValue,
             messageContent: content,
             sessionExists: false,
-            triggered: false
+            triggered: false,
           };
         }
       }
@@ -1031,30 +1060,36 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
 
       // Process the bot with debounce or directly
       if (debounceTime && debounceTime > 0) {
-        this.processDebounce(this.userMessageDebounce, content, message.key.remoteJid, debounceTime, async (debouncedContent) => {
-          await this.evolutionBotService.processBot(
-            this.waMonitor.waInstances[instance.instanceName],
-            message.key.remoteJid,
-            bot,
-            session,
-            {
-              ...settings,
-              expire,
-              keywordFinish,
-              delayMessage,
-              unknownMessage,
-              listeningFromMe,
-              stopBotFromMe,
-              keepOpen,
-              debounceTime,
-              ignoreJids,
-              splitMessages,
-              timePerChar,
-            },
-            debouncedContent,
-            message?.pushName,
-          );
-        });
+        this.processDebounce(
+          this.userMessageDebounce,
+          content,
+          message.key.remoteJid,
+          debounceTime,
+          async (debouncedContent) => {
+            await this.evolutionBotService.processBot(
+              this.waMonitor.waInstances[instance.instanceName],
+              message.key.remoteJid,
+              bot,
+              session,
+              {
+                ...settings,
+                expire,
+                keywordFinish,
+                delayMessage,
+                unknownMessage,
+                listeningFromMe,
+                stopBotFromMe,
+                keepOpen,
+                debounceTime,
+                ignoreJids,
+                splitMessages,
+                timePerChar,
+              },
+              debouncedContent,
+              message?.pushName,
+            );
+          },
+        );
       } else {
         await this.evolutionBotService.processBot(
           this.waMonitor.waInstances[instance.instanceName],
@@ -1080,17 +1115,156 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         );
       }
 
-      return { 
+      return {
         message: 'Evolution Bot invoked successfully',
         botId: bot.id,
         botTriggered: true,
         triggerType: bot.triggerType,
         remoteJid: message.key.remoteJid,
-        content: content
+        content: content,
       };
     } catch (error) {
       this.logger.error(error);
       throw error;
+    }
+  }
+
+  // Configure Manual Invoke - Endpoint for external systems
+  public async configureManualInvoke(instance: InstanceDto, data: any) {
+    try {
+      const { manualInvoke, evolutionBotId } = data;
+
+      // Get instance ID
+      const instanceId = await this.prismaRepository.instance
+        .findFirst({
+          where: {
+            name: instance.instanceName,
+          },
+        })
+        .then((instance) => instance.id);
+
+      // Validate evolution bot exists if provided
+      if (manualInvoke && evolutionBotId) {
+        const bot = await this.botRepository.findFirst({
+          where: {
+            id: evolutionBotId,
+            instanceId: instanceId,
+          },
+        });
+
+        if (!bot) {
+          throw new Error(`Evolution Bot with ID ${evolutionBotId} not found for this instance`);
+        }
+      }
+
+      // Get current settings
+      const settings = await this.settingsRepository.findFirst({
+        where: {
+          instanceId: instanceId,
+        },
+      });
+
+      if (settings) {
+        // Update existing settings
+        const updatedSettings = await this.settingsRepository.update({
+          where: {
+            id: settings.id,
+          },
+          data: {
+            manualInvoke: manualInvoke,
+            manualInvokeBotId: manualInvoke && evolutionBotId ? evolutionBotId : null,
+          },
+        });
+
+        return {
+          success: true,
+          message: 'Manual invoke configuration updated successfully',
+          manualInvoke: updatedSettings.manualInvoke,
+          manualInvokeBotId: updatedSettings.manualInvokeBotId,
+          evolutionBotDisabled: updatedSettings.manualInvoke && updatedSettings.manualInvokeBotId ? true : false,
+        };
+      } else {
+        // Create new settings with default values
+        const newSettings = await this.settingsRepository.create({
+          data: {
+            expire: 0,
+            keywordFinish: '',
+            delayMessage: 0,
+            unknownMessage: '',
+            listeningFromMe: false,
+            stopBotFromMe: false,
+            keepOpen: false,
+            debounceTime: 0,
+            ignoreJids: [],
+            splitMessages: false,
+            timePerChar: 0,
+            manualInvoke: manualInvoke,
+            manualInvokeBotId: manualInvoke && evolutionBotId ? evolutionBotId : null,
+            instanceId: instanceId,
+          },
+        });
+
+        return {
+          success: true,
+          message: 'Manual invoke configuration created successfully',
+          manualInvoke: newSettings.manualInvoke,
+          manualInvokeBotId: newSettings.manualInvokeBotId,
+          evolutionBotDisabled: newSettings.manualInvoke && newSettings.manualInvokeBotId ? true : false,
+        };
+      }
+    } catch (error) {
+      this.logger.error(error);
+      throw new Error('Error configuring manual invoke: ' + error.message);
+    }
+  }
+
+  // List Evolution Bots for Manual Invoke Configuration
+  public async listBotsForManualInvoke(instance: InstanceDto) {
+    try {
+      const instanceId = await this.prismaRepository.instance
+        .findFirst({
+          where: {
+            name: instance.instanceName,
+          },
+        })
+        .then((instance) => instance.id);
+
+      const bots = await this.botRepository.findMany({
+        where: {
+          instanceId: instanceId,
+          enabled: true,
+        },
+        select: {
+          id: true,
+          description: true,
+          triggerType: true,
+          triggerValue: true,
+          enabled: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+      // Get current manual invoke settings
+      const settings = await this.settingsRepository.findFirst({
+        where: {
+          instanceId: instanceId,
+        },
+      });
+
+      return {
+        success: true,
+        bots: bots,
+        currentManualInvokeConfig: {
+          manualInvoke: settings?.manualInvoke || false,
+          manualInvokeBotId: settings?.manualInvokeBotId || null,
+        },
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw new Error('Error listing bots for manual invoke: ' + error.message);
     }
   }
 }

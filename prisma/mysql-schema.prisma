@@ -116,18 +116,19 @@ model Session {
 }
 
 model Chat {
-  id         String    @id @default(cuid())
-  remoteJid  String    @db.VarChar(100)
-  name       String?   @db.VarChar(100)
-  labels     Json?     @db.Json
-  createdAt  DateTime? @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp
-  updatedAt  DateTime? @updatedAt @db.Timestamp
-  Instance   Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  instanceId String
+  id             String    @id @default(cuid())
+  remoteJid      String    @db.VarChar(100)
+  name           String?   @db.VarChar(100)
+  labels         Json?     @db.Json
+  createdAt      DateTime? @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp
+  updatedAt      DateTime? @updatedAt @db.Timestamp
+  Instance       Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  instanceId     String
   unreadMessages Int       @default(0)
+
+  @@unique([instanceId, remoteJid])
   @@index([instanceId])
   @@index([remoteJid])
-  @@unique([instanceId, remoteJid])
 }
 
 model Contact {
@@ -170,6 +171,7 @@ model Message {
 
   sessionId String?
   session   IntegrationSession? @relation(fields: [sessionId], references: [id])
+
   @@index([instanceId])
 }
 
@@ -185,6 +187,7 @@ model MessageUpdate {
   messageId   String
   Instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   instanceId  String
+
   @@index([instanceId])
   @@index([messageId])
 }
@@ -201,6 +204,7 @@ model Webhook {
   updatedAt       DateTime  @updatedAt @db.Timestamp
   Instance        Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   instanceId      String    @unique
+
   @@index([instanceId])
 }
 
@@ -269,6 +273,7 @@ model Setting {
   updatedAt       DateTime  @updatedAt @db.Timestamp
   Instance        Instance  @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   instanceId      String    @unique
+
   @@index([instanceId])
 }
 
@@ -525,51 +530,55 @@ model DifySetting {
 }
 
 model EvolutionBot {
-  id                  String                @id @default(cuid())
-  enabled             Boolean               @default(true)
-  description         String?               @db.VarChar(255)
-  apiUrl              String?               @db.VarChar(255)
-  apiKey              String?               @db.VarChar(255)
-  expire              Int?                  @default(0) @db.Int
-  keywordFinish       String?               @db.VarChar(100)
-  delayMessage        Int?                  @db.Int
-  unknownMessage      String?               @db.VarChar(100)
-  listeningFromMe     Boolean?              @default(false)
-  stopBotFromMe       Boolean?              @default(false)
-  keepOpen            Boolean?              @default(false)
-  debounceTime        Int?                  @db.Int
-  ignoreJids          Json?
-  splitMessages       Boolean?              @default(false)
-  timePerChar         Int?                  @default(50) @db.Int
-  triggerType         TriggerType?
-  triggerOperator     TriggerOperator?
-  triggerValue        String?
-  createdAt           DateTime?             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp
-  updatedAt           DateTime              @updatedAt @db.Timestamp
-  Instance            Instance              @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  instanceId          String
-  EvolutionBotSetting EvolutionBotSetting[]
+  id                   String                @id @default(cuid())
+  enabled              Boolean               @default(true)
+  description          String?               @db.VarChar(255)
+  apiUrl               String?               @db.VarChar(255)
+  apiKey               String?               @db.VarChar(255)
+  expire               Int?                  @default(0) @db.Int
+  keywordFinish        String?               @db.VarChar(100)
+  delayMessage         Int?                  @db.Int
+  unknownMessage       String?               @db.VarChar(100)
+  listeningFromMe      Boolean?              @default(false)
+  stopBotFromMe        Boolean?              @default(false)
+  keepOpen             Boolean?              @default(false)
+  debounceTime         Int?                  @db.Int
+  ignoreJids           Json?
+  splitMessages        Boolean?              @default(false)
+  timePerChar          Int?                  @default(50) @db.Int
+  triggerType          TriggerType?
+  triggerOperator      TriggerOperator?
+  triggerValue         String?
+  createdAt            DateTime?             @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp
+  updatedAt            DateTime              @updatedAt @db.Timestamp
+  Instance             Instance              @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  instanceId           String
+  EvolutionBotSetting  EvolutionBotSetting[]
+  ManualInvokeSettings EvolutionBotSetting[] @relation("ManualInvokeBot")
 }
 
 model EvolutionBotSetting {
-  id              String        @id @default(cuid())
-  expire          Int?          @default(0) @db.Int
-  keywordFinish   String?       @db.VarChar(100)
-  delayMessage    Int?          @db.Int
-  unknownMessage  String?       @db.VarChar(100)
-  listeningFromMe Boolean?      @default(false)
-  stopBotFromMe   Boolean?      @default(false)
-  keepOpen        Boolean?      @default(false)
-  debounceTime    Int?          @db.Int
-  ignoreJids      Json?
-  splitMessages   Boolean?      @default(false)
-  timePerChar     Int?          @default(50) @db.Int
-  createdAt       DateTime?     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp
-  updatedAt       DateTime      @updatedAt @db.Timestamp
-  Fallback        EvolutionBot? @relation(fields: [botIdFallback], references: [id])
-  botIdFallback   String?       @db.VarChar(100)
-  Instance        Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-  instanceId      String        @unique
+  id                String        @id @default(cuid())
+  expire            Int?          @default(0) @db.Int
+  keywordFinish     String?       @db.VarChar(100)
+  delayMessage      Int?          @db.Int
+  unknownMessage    String?       @db.VarChar(100)
+  listeningFromMe   Boolean?      @default(false)
+  stopBotFromMe     Boolean?      @default(false)
+  keepOpen          Boolean?      @default(false)
+  debounceTime      Int?          @db.Int
+  ignoreJids        Json?
+  splitMessages     Boolean?      @default(false)
+  timePerChar       Int?          @default(50) @db.Int
+  manualInvoke      Boolean?      @default(false)
+  manualInvokeBotId String?       @db.VarChar(100)
+  createdAt         DateTime?     @default(dbgenerated("CURRENT_TIMESTAMP")) @db.Timestamp
+  updatedAt         DateTime      @updatedAt @db.Timestamp
+  Fallback          EvolutionBot? @relation(fields: [botIdFallback], references: [id])
+  botIdFallback     String?       @db.VarChar(100)
+  ManualInvokeBot   EvolutionBot? @relation("ManualInvokeBot", fields: [manualInvokeBotId], references: [id])
+  Instance          Instance      @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  instanceId        String        @unique
 }
 
 model Flowise {
