@@ -824,6 +824,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
             },
             debouncedContent,
             msg?.pushName,
+            null,
           );
         });
       } else {
@@ -848,6 +849,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
           },
           content,
           msg?.pushName,
+          null,
         );
       }
 
@@ -882,6 +884,9 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
       // Get message content
       const content = getConversationMessage(message);
 
+      // Extract contextInfo if available
+      const contextInfo = message.contextInfo || message.quoted || null;
+
       // Check ignore JIDs
       if (this.checkIgnoreJids(settings?.ignoreJids, message.key.remoteJid)) {
         return { message: 'JID is in ignore list' };
@@ -906,7 +911,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
           remoteJid: message.key.remoteJid,
           instanceId: instance.instanceId,
           botId: evolutionBotId,
-          status: { not: 'closed' }
+          status: { not: 'closed' },
         },
         orderBy: { createdAt: 'desc' },
       });
@@ -921,12 +926,12 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
       } else {
         // No session exists, check if this is a finishing trigger
         if (specificBot.keywordFinish && content === specificBot.keywordFinish) {
-          return { 
+          return {
             message: `Bot with ID ${evolutionBotId} received finish keyword but no active session exists`,
             botId: evolutionBotId,
             keywordFinish: specificBot.keywordFinish,
             messageContent: content,
-            sessionExists: false
+            sessionExists: false,
           };
         }
 
@@ -965,7 +970,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         }
 
         if (!shouldExecute) {
-          return { 
+          return {
             message: `Bot with ID ${evolutionBotId} exists but trigger conditions not met for new session`,
             botId: evolutionBotId,
             triggerType: specificBot.triggerType,
@@ -973,7 +978,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
             triggerValue: specificBot.triggerValue,
             messageContent: content,
             sessionExists: false,
-            triggered: false
+            triggered: false,
           };
         }
       }
@@ -1031,30 +1036,37 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
 
       // Process the bot with debounce or directly
       if (debounceTime && debounceTime > 0) {
-        this.processDebounce(this.userMessageDebounce, content, message.key.remoteJid, debounceTime, async (debouncedContent) => {
-          await this.evolutionBotService.processBot(
-            this.waMonitor.waInstances[instance.instanceName],
-            message.key.remoteJid,
-            bot,
-            session,
-            {
-              ...settings,
-              expire,
-              keywordFinish,
-              delayMessage,
-              unknownMessage,
-              listeningFromMe,
-              stopBotFromMe,
-              keepOpen,
-              debounceTime,
-              ignoreJids,
-              splitMessages,
-              timePerChar,
-            },
-            debouncedContent,
-            message?.pushName,
-          );
-        });
+        this.processDebounce(
+          this.userMessageDebounce,
+          content,
+          message.key.remoteJid,
+          debounceTime,
+          async (debouncedContent) => {
+            await this.evolutionBotService.processBot(
+              this.waMonitor.waInstances[instance.instanceName],
+              message.key.remoteJid,
+              bot,
+              session,
+              {
+                ...settings,
+                expire,
+                keywordFinish,
+                delayMessage,
+                unknownMessage,
+                listeningFromMe,
+                stopBotFromMe,
+                keepOpen,
+                debounceTime,
+                ignoreJids,
+                splitMessages,
+                timePerChar,
+              },
+              debouncedContent,
+              message?.pushName,
+              contextInfo,
+            );
+          },
+        );
       } else {
         await this.evolutionBotService.processBot(
           this.waMonitor.waInstances[instance.instanceName],
@@ -1077,16 +1089,17 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
           },
           content,
           message?.pushName,
+          contextInfo,
         );
       }
 
-      return { 
+      return {
         message: 'Evolution Bot invoked successfully',
         botId: bot.id,
         botTriggered: true,
         triggerType: bot.triggerType,
         remoteJid: message.key.remoteJid,
-        content: content
+        content: content,
       };
     } catch (error) {
       this.logger.error(error);

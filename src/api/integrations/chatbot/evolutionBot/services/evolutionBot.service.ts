@@ -51,6 +51,7 @@ export class EvolutionBotService {
     remoteJid: string,
     pushName: string,
     content: string,
+    contextInfo?: any,
   ) {
     const payload: any = {
       inputs: {
@@ -65,6 +66,10 @@ export class EvolutionBotService {
       conversation_id: session.sessionId === remoteJid ? undefined : session.sessionId,
       user: remoteJid,
     };
+
+    if (contextInfo) {
+      payload.contextInfo = contextInfo;
+    }
 
     if (this.isImageMessage(content)) {
       const contentSplit = content.split('|');
@@ -310,7 +315,7 @@ export class EvolutionBotService {
       session = data.session;
     }
 
-    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content);
+    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content, null);
 
     if (!message) return;
 
@@ -327,6 +332,7 @@ export class EvolutionBotService {
     settings: EvolutionBotSetting,
     content: string,
     pushName?: string,
+    contextInfo?: any,
   ) {
     if (session && session.status !== 'opened') {
       return;
@@ -417,7 +423,7 @@ export class EvolutionBotService {
       return;
     }
 
-    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content);
+    const message = await this.sendMessageToBot(instance, session, bot, remoteJid, pushName, content, contextInfo);
 
     if (!message) return;
 
