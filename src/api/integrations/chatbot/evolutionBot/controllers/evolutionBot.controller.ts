@@ -916,7 +916,7 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
         orderBy: { createdAt: 'desc' },
       });
 
-      let bot = specificBot;
+      const bot = specificBot;
       let shouldExecute = false;
 
       if (existingSession) {
@@ -1032,6 +1032,11 @@ export class EvolutionBotController extends ChatbotController implements Chatbot
       // Check if session is waiting for user
       if (session && !session.awaitUser) {
         return { message: 'Session not awaiting user response' };
+      }
+
+      // Check if session is paused
+      if (session && session.status === 'paused') {
+        return { message: 'Session is paused' };
       }
 
       // Process the bot with debounce or directly
